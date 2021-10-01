@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,7 +19,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import coil.compose.rememberImagePainter
 import coil.transform.CircleCropTransformation
 import com.example.profilcardlayout.ui.theme.MyTheme
@@ -30,14 +38,32 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MyTheme {
-                MainScreen()
+                UsersApplication()
             }
         }
     }
 }
 
 @Composable
-fun MainScreen(userProfiles: List<UserProfile> = userProfileList) {
+fun UsersApplication(userProfiles: List<UserProfile> = userProfileList) {
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "users_list") {
+        composable("users_list") {
+            UserListScreen(userProfiles, navController)
+        }
+        composable(
+            route = "user_details/{userId}",
+            arguments = listOf(navArgument("userId") {
+                type = NavType.IntType
+            })
+        ) { navBackStackEntry ->
+            UserProfileDetailsScreen(navBackStackEntry.arguments!!.getInt("userId"))
+        }
+    }
+}
+
+@Composable
+fun UserListScreen(userProfiles: List<UserProfile>, navController: NavHostController) {
     Scaffold(
         topBar = { AppBar() }) {
         Surface(
@@ -46,7 +72,11 @@ fun MainScreen(userProfiles: List<UserProfile> = userProfileList) {
         {
             LazyColumn {
                 items(userProfiles) { userProfile ->
-                    ProfileCard(userProfile = userProfile)
+                    ProfileCard(
+                        userProfile = userProfile
+                    ) {
+                        navController.navigate("user_details/${userProfile.id}")
+                    }
                 }
             }
         }
@@ -67,7 +97,7 @@ fun AppBar() {
 }
 
 @Composable
-fun ProfileCard(userProfile: UserProfile) {
+fun ProfileCard(userProfile: UserProfile, clickAction: () -> Unit) {
     Card(
         modifier = Modifier
             .padding(
@@ -77,7 +107,9 @@ fun ProfileCard(userProfile: UserProfile) {
                 end = 16.dp
             )
             .fillMaxWidth()
-            .wrapContentHeight(align = Alignment.Top),
+            .wrapContentHeight(align = Alignment.Top)
+            .clickable { clickAction.invoke() },
+
         elevation = 8.dp,
         backgroundColor = Color.White
     )
@@ -88,13 +120,17 @@ fun ProfileCard(userProfile: UserProfile) {
             horizontalArrangement = Arrangement.Start
         ) {
             ProfilePicture(pictureUrl = userProfile.pictureUrl, onlineStatus = userProfile.status)
-            ProfileContent(userName = userProfile.name, onlineStatus = userProfile.status)
+            ProfileContent(
+                userName = userProfile.name,
+                onlineStatus = userProfile.status,
+                Alignment.Start
+            )
         }
     }
 }
 
 @Composable
-fun ProfilePicture(pictureUrl: String, onlineStatus: Boolean) {
+fun ProfilePicture(pictureUrl: String, onlineStatus: Boolean, imageSize: Dp = 72.dp) {
     Card(
         shape = CircleShape,
         border = BorderStroke(
@@ -113,17 +149,17 @@ fun ProfilePicture(pictureUrl: String, onlineStatus: Boolean) {
                 }
             ),
             contentDescription = "",
-            modifier = Modifier.size(72.dp)
+            modifier = Modifier.size(imageSize)
         )
     }
 }
 
 @Composable
-fun ProfileContent(userName: String, onlineStatus: Boolean) {
+fun ProfileContent(userName: String, onlineStatus: Boolean, alignment: Alignment.Horizontal) {
     Column(
         modifier = Modifier
-            .padding(8.dp)
-            .fillMaxWidth()
+            .padding(8.dp),
+        horizontalAlignment = alignment
     )
     {
         CompositionLocalProvider(
@@ -144,10 +180,47 @@ fun ProfileContent(userName: String, onlineStatus: Boolean) {
     }
 }
 
+@Composable
+fun UserProfileDetailsScreen(userId: Int) {
+    val userProfile = userProfileList.first { userId == it.id }
+    Scaffold(
+        topBar = { AppBar() }) {
+        Surface(
+            Modifier.fillMaxSize()
+        )
+        {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top
+            ) {
+                ProfilePicture(
+                    pictureUrl = userProfile.pictureUrl,
+                    onlineStatus = userProfile.status,
+                    imageSize = 240.dp
+                )
+                ProfileContent(
+                    userName = userProfile.name,
+                    onlineStatus = userProfile.status,
+                    Alignment.CenterHorizontally
+                )
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
-fun DefaultPreview() {
+fun UserListPreview() {
     MyTheme {
-        MainScreen()
+        UsersApplication()
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun UserProfileDetailsPreview() {
+    MyTheme {
+        UserProfileDetailsScreen(userId = 0)
     }
 }
